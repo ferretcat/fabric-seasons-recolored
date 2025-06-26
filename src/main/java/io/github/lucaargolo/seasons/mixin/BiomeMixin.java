@@ -1,19 +1,7 @@
 package io.github.lucaargolo.seasons.mixin;
 
-import io.github.lucaargolo.seasons.FabricSeasons;
-import io.github.lucaargolo.seasons.mixed.BiomeMixed;
-import io.github.lucaargolo.seasons.resources.FoliageSeasonColors;
-import io.github.lucaargolo.seasons.resources.GrassSeasonColors;
-import io.github.lucaargolo.seasons.utils.ColorsCache;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.BiomeEffects;
+import java.util.Optional;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,100 +9,168 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.Optional;
+import io.github.lucaargolo.seasons.FabricSeasons;
+import io.github.lucaargolo.seasons.mixed.BiomeMixed;
+import io.github.lucaargolo.seasons.resources.GrassSeasonColors;
+import io.github.lucaargolo.seasons.serene.SereneUtils;
+import io.github.lucaargolo.seasons.utils.ColorsCache;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.BiomeEffects;
 
 @Mixin(Biome.class)
 public abstract class BiomeMixin implements BiomeMixed {
 
-    @Shadow @Final public Biome.Weather weather;
-    @Shadow @Final private BiomeEffects effects;
+    @Shadow
+    @Final
+    public Biome.Weather weather;
+    @Shadow
+    @Final
+    private BiomeEffects effects;
 
-    @Shadow protected abstract int getDefaultGrassColor();
+    @Shadow
+    protected abstract int getDefaultGrassColor();
 
-    @Shadow protected abstract int getDefaultFoliageColor();
+    @Shadow
+    protected abstract int getDefaultFoliageColor();
 
     private Biome.Weather originalWeather;
 
-    @SuppressWarnings({"ConstantConditions", "removal", "OptionalAssignedToNull"})
+    @SuppressWarnings({ "ConstantConditions", "removal", "OptionalAssignedToNull" })
     @Environment(EnvType.CLIENT)
     @Inject(at = @At("TAIL"), method = "getGrassColorAt", cancellable = true)
     public void getSeasonGrassColor(double x, double z, CallbackInfoReturnable<Integer> cir) {
         Biome biome = (Biome) ((Object) this);
         Optional<Integer> overridedColor;
-        if(ColorsCache.hasGrassCache(biome)) {
+        if (ColorsCache.hasGrassCache(biome)) {
             overridedColor = ColorsCache.getGrassCache(biome);
-        }else {
+        } else {
             overridedColor = effects.getGrassColor();
             World world = MinecraftClient.getInstance().world;
-            if(world != null) {
+            if (world != null) {
                 Identifier biomeIdentifier = world.getRegistryManager().get(RegistryKeys.BIOME).getId(biome);
-                Optional<Integer> seasonGrassColor = GrassSeasonColors.getSeasonGrassColor(biome, biomeIdentifier, FabricSeasons.getCurrentSeason());
-                if(seasonGrassColor.isPresent()) {
+                Optional<Integer> seasonGrassColor = GrassSeasonColors.getSeasonGrassColor(biome, biomeIdentifier,
+                        FabricSeasons.getCurrentSeason());
+                if (seasonGrassColor.isPresent()) {
                     overridedColor = seasonGrassColor;
                 }
             }
             ColorsCache.createGrassCache(biome, overridedColor);
         }
-        if(effects.getGrassColorModifier() == BiomeEffects.GrassColorModifier.SWAMP) {
+        if (effects.getGrassColorModifier() == BiomeEffects.GrassColorModifier.SWAMP) {
             int swampColor1 = GrassSeasonColors.getSwampColor1(FabricSeasons.getCurrentSeason());
             int swampColor2 = GrassSeasonColors.getSwampColor2(FabricSeasons.getCurrentSeason());
 
             double d = Biome.FOLIAGE_NOISE.sample(x * 0.0225D, z * 0.0225D, false);
             cir.setReturnValue(d < -0.1D ? swampColor1 : swampColor2);
-        }else if(overridedColor != null){
+        } else if (overridedColor != null) {
             Integer integer = overridedColor.orElseGet(this::getDefaultGrassColor);
             cir.setReturnValue(effects.getGrassColorModifier().getModifiedGrassColor(x, z, integer));
         }
     }
 
-    @SuppressWarnings({"ConstantConditions", "OptionalAssignedToNull"})
+    @SuppressWarnings({ "ConstantConditions", "OptionalAssignedToNull" })
     @Environment(EnvType.CLIENT)
     @Inject(at = @At("TAIL"), method = "getFoliageColor", cancellable = true)
     public void getSeasonFoliageColor(CallbackInfoReturnable<Integer> cir) {
         Biome biome = (Biome) ((Object) this);
         Optional<Integer> overridedColor;
-        if(ColorsCache.hasFoliageCache(biome)) {
-            overridedColor = ColorsCache.getFoliageCache(biome);
-        }else{
-            overridedColor = effects.getFoliageColor();
-            World world = MinecraftClient.getInstance().world;
-            if(world != null) {
-                Identifier biomeIdentifier = world.getRegistryManager().get(RegistryKeys.BIOME).getId(biome);
-                Optional<Integer> seasonFoliageColor = FoliageSeasonColors.getSeasonFoliageColor(biome, biomeIdentifier, FabricSeasons.getCurrentSeason());
-                if(seasonFoliageColor.isPresent()) {
-                    overridedColor = seasonFoliageColor;
-                }
-            }
-            ColorsCache.createFoliageCache(biome, overridedColor);
+        // if (ColorsCache.hasFoliageCache(biome)) {
+        //     overridedColor = ColorsCache.getFoliageCache(biome);
+        //     if (overridedColor != null) {
+        //         Integer integer = overridedColor.orElseGet(this::getDefaultFoliageColor);
+        //         cir.setReturnValue(integer);
+        //     }
+        // } else {
+        overridedColor = effects.getFoliageColor();
+        // World world = MinecraftClient.getInstance().world;
+        // if (world != null) {
+        // Identifier biomeIdentifier = world.getRegistryManager().get(RegistryKeys.BIOME).getId(biome);
+        // Optional<Integer> seasonFoliageColor = FoliageSeasonColors.getSeasonFoliageColor(biome, biomeIdentifier,
+        //         FabricSeasons.getCurrentSeason());
+        // if (seasonFoliageColor.isPresent()) {
+        //     overridedColor = seasonFoliageColor;
+        // }
+
+        // if (overridedColor != null) {
+        Integer overridedColorInteger = overridedColor.orElseGet(this::getDefaultFoliageColor);
+
+        RegistryEntry<Biome> biomeEntry = new RegistryEntry.Direct<Biome>(biome);
+
+        int overlay;
+        float saturationMultiplier;
+
+        switch (FabricSeasons.getCurrentSeason()) {
+            case SPRING:
+                overlay = 0x4F86AF;
+                saturationMultiplier = -1;
+                break;
+
+            case SUMMER:
+                overlay = 0xFFFFFF;
+                saturationMultiplier = -1;
+                break;
+
+            case FALL:
+                overlay = 0xEF2121;
+                saturationMultiplier = -1;
+                break;
+
+            default:
+                overlay = 0xDB3030;
+                saturationMultiplier = 0.45F;
+                break;
         }
-        if(overridedColor != null) {
-            Integer integer = overridedColor.orElseGet(this::getDefaultFoliageColor);
-            cir.setReturnValue(integer);
+
+        int newColor = overlay == 0xFFFFFF ? overridedColorInteger
+                : SereneUtils.overlayBlend(overridedColorInteger, overlay);
+        int fixedColour = newColor;
+        if (biomeEntry.isIn(FabricSeasons.LESSER_COLOR_CHANGE_BIOMES_TAG)) {
+            fixedColour = SereneUtils.mixColours(newColor, overridedColorInteger, 0.75F);
         }
+
+        fixedColour = saturationMultiplier != -1
+                ? SereneUtils.saturateColour(fixedColour, saturationMultiplier)
+                : fixedColour;
+
+        cir.setReturnValue(fixedColour);
+        // }
+
+        // }
+        //     ColorsCache.createFoliageCache(biome, overridedColor);
+        // }
     }
 
-    @Environment(EnvType.CLIENT)
-    @Inject(at = @At("HEAD"), method = "getDefaultFoliageColor", cancellable = true)
-    public void getSeasonDefaultFolliageColor(CallbackInfoReturnable<Integer> cir) {
-        if(this.originalWeather != null) {
-            double originalTemperature = MathHelper.clamp(this.originalWeather.temperature(), 0.0F, 1.0F);
-            double originalDownfall = MathHelper.clamp(this.originalWeather.downfall(), 0.0F, 1.0F);
-            cir.setReturnValue(FoliageSeasonColors.getColor(FabricSeasons.getCurrentSeason(), originalTemperature, originalDownfall));
-        }else{
-            double temperature = MathHelper.clamp(this.weather.temperature(), 0.0F, 1.0F);
-            double downfall = MathHelper.clamp(this.weather.downfall(), 0.0F, 1.0F);
-            cir.setReturnValue(FoliageSeasonColors.getColor(FabricSeasons.getCurrentSeason(), temperature, downfall));
-        }
-    }
+    // @Environment(EnvType.CLIENT)
+    // @Inject(at = @At("HEAD"), method = "getDefaultFoliageColor", cancellable = true)
+    // public void getSeasonDefaultFolliageColor(CallbackInfoReturnable<Integer> cir) {
+    //     if (this.originalWeather != null) {
+    //         double originalTemperature = MathHelper.clamp(this.originalWeather.temperature(), 0.0F, 1.0F);
+    //         double originalDownfall = MathHelper.clamp(this.originalWeather.downfall(), 0.0F, 1.0F);
+    //         cir.setReturnValue(FoliageSeasonColors.getColor(FabricSeasons.getCurrentSeason(), originalTemperature,
+    //                 originalDownfall));
+    //     } else {
+    //         double temperature = MathHelper.clamp(this.weather.temperature(), 0.0F, 1.0F);
+    //         double downfall = MathHelper.clamp(this.weather.downfall(), 0.0F, 1.0F);
+    //         cir.setReturnValue(FoliageSeasonColors.getColor(FabricSeasons.getCurrentSeason(), temperature, downfall));
+    //     }
+    // }
 
     @Environment(EnvType.CLIENT)
     @Inject(at = @At("HEAD"), method = "getDefaultGrassColor", cancellable = true)
     public void getSeasonDefaultGrassColor(CallbackInfoReturnable<Integer> cir) {
-        if(this.originalWeather != null) {
+        if (this.originalWeather != null) {
             double d = MathHelper.clamp(this.originalWeather.temperature(), 0.0F, 1.0F);
             double e = MathHelper.clamp(this.originalWeather.downfall(), 0.0F, 1.0F);
             cir.setReturnValue(GrassSeasonColors.getColor(FabricSeasons.getCurrentSeason(), d, e));
-        }else{
+        } else {
             double d = MathHelper.clamp(this.weather.temperature(), 0.0F, 1.0F);
             double e = MathHelper.clamp(this.weather.downfall(), 0.0F, 1.0F);
             cir.setReturnValue(GrassSeasonColors.getColor(FabricSeasons.getCurrentSeason(), d, e));

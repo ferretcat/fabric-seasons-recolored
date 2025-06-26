@@ -1,5 +1,9 @@
 package io.github.lucaargolo.seasons.mixin;
 
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Shadow;
+
 import io.github.lucaargolo.seasons.FabricSeasons;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
@@ -7,14 +11,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeAccess;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
-import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(WorldView.class)
 public interface WorldViewMixin {
 
-    @Shadow BiomeAccess getBiomeAccess();
+    @Shadow
+    BiomeAccess getBiomeAccess();
 
     /**
      * @author D4rkness_King
