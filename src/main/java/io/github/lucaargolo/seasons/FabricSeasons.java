@@ -1,8 +1,20 @@
 package io.github.lucaargolo.seasons;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
+
 import io.github.lucaargolo.seasons.commands.SeasonCommand;
 import io.github.lucaargolo.seasons.mixed.BiomeMixed;
 import io.github.lucaargolo.seasons.payload.ConfigSyncPacket;
@@ -43,16 +55,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.io.File;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.HashMap;
 
 public class FabricSeasons implements ModInitializer {
 
@@ -98,7 +100,8 @@ public class FabricSeasons implements ModInitializer {
             LOGGER.warn("[" + MOD_NAME + "] Defaulting to original config.");
         }
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated, ignored) -> SeasonCommand.register(dispatcher));
+        CommandRegistrationCallback.EVENT
+                .register((dispatcher, dedicated, ignored) -> SeasonCommand.register(dispatcher));
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SEEDS_MAP.clear();
@@ -114,7 +117,8 @@ public class FabricSeasons implements ModInitializer {
 
         PayloadTypeRegistry.playS2C().register(UpdateCropsPaycket.ID, UpdateCropsPaycket.CODEC);
         ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) -> {
-            ServerPlayNetworking.send(player, UpdateCropsPaycket.fromConfig(CropConfigs.getDefaultCropConfig(), CropConfigs.getCropConfigMap()));
+            ServerPlayNetworking.send(player,
+                    UpdateCropsPaycket.fromConfig(CropConfigs.getDefaultCropConfig(), CropConfigs.getCropConfigMap()));
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -146,11 +150,13 @@ public class FabricSeasons implements ModInitializer {
     }
 
     public static PlacedMeltablesState getPlacedMeltablesState(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(PlacedMeltablesState.getPersistentStateType(), "seasons_placed_meltables");
+        return world.getPersistentStateManager().getOrCreate(PlacedMeltablesState.getPersistentStateType(),
+                "seasons_placed_meltables");
     }
 
     public static ReplacedMeltablesState getReplacedMeltablesState(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(ReplacedMeltablesState.getPersistentStateType(), "seasons_replaced_meltables");
+        return world.getPersistentStateManager().getOrCreate(ReplacedMeltablesState.getPersistentStateType(),
+                "seasons_replaced_meltables");
     }
 
     public static long getTimeToNextSeason(World world) {
@@ -160,14 +166,14 @@ public class FabricSeasons implements ModInitializer {
         long winterLength = CONFIG.getWinterLength();
         RegistryKey<World> dimension = world.getRegistryKey();
         if (CONFIG.isValidInDimension(dimension) && !CONFIG.isSeasonLocked()) {
-            if(CONFIG.isSeasonTiedWithSystemTime()) {
+            if (CONFIG.isSeasonTiedWithSystemTime()) {
                 return getTimeToNextSystemSeason() * 24000;
             }
 
             Season currentSeason = getCurrentSeason(world);
 
-            long[] seasonLengthArray = new long[]{springLength, summerLength,  fallLength, winterLength};
-            Season[] seasonArray = new Season[]{Season.SPRING, Season.SUMMER,  Season.FALL, Season.WINTER};
+            long[] seasonLengthArray = new long[] { springLength, summerLength, fallLength, winterLength };
+            Season[] seasonArray = new Season[] { Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER };
 
             int startSeasonIndex = switch (CONFIG.getStartingSeason()) {
                 case SPRING -> 0;
@@ -182,9 +188,9 @@ public class FabricSeasons implements ModInitializer {
             long yearLength = season3LimitYTD + seasonLengthArray[(startSeasonIndex + 3) % 4];
             long timeOfYear = world.getTimeOfDay() % yearLength;
 
-            if(currentSeason == seasonArray[startSeasonIndex]) {
+            if (currentSeason == seasonArray[startSeasonIndex]) {
                 return season1LimitYTD - timeOfYear;
-            } else if(currentSeason == seasonArray[(startSeasonIndex + 1) % 4]) {
+            } else if (currentSeason == seasonArray[(startSeasonIndex + 1) % 4]) {
                 return season2LimitYTD - timeOfYear;
             } else if (currentSeason == seasonArray[(startSeasonIndex + 2) % 4]) {
                 return season3LimitYTD - timeOfYear;
@@ -198,10 +204,10 @@ public class FabricSeasons implements ModInitializer {
     public static Season getNextSeason(World world, Season currentSeason) {
         RegistryKey<World> dimension = world.getRegistryKey();
         if (CONFIG.isValidInDimension(dimension)) {
-            if(CONFIG.isSeasonLocked()) {
+            if (CONFIG.isSeasonLocked()) {
                 return CONFIG.getLockedSeason();
             }
-            if(CONFIG.isSeasonTiedWithSystemTime()) {
+            if (CONFIG.isSeasonTiedWithSystemTime()) {
                 return getCurrentSystemSeason().getNext();
             }
 
@@ -222,13 +228,14 @@ public class FabricSeasons implements ModInitializer {
         long winterLength = CONFIG.getWinterLength();
         RegistryKey<World> dimension = world.getRegistryKey();
         if (CONFIG.isValidInDimension(dimension)) {
-            if(CONFIG.isSeasonLocked()) {
+            if (CONFIG.isSeasonLocked()) {
                 return CONFIG.getLockedSeason();
-            }else if(CONFIG.isSeasonTiedWithSystemTime()) {
+            } else if (CONFIG.isSeasonTiedWithSystemTime()) {
                 return getCurrentSystemSeason();
-            }else if(CONFIG.isValidStartingSeason() && springLength >= 0 && summerLength >= 0 && fallLength >= 0 && winterLength >= 0) {
-                long[] seasonLengthArray = new long[]{springLength, summerLength, fallLength, winterLength};
-                Season[] seasonArray = new Season[]{Season.SPRING, Season.SUMMER,  Season.FALL, Season.WINTER};
+            } else if (CONFIG.isValidStartingSeason() && springLength >= 0 && summerLength >= 0 && fallLength >= 0
+                    && winterLength >= 0) {
+                long[] seasonLengthArray = new long[] { springLength, summerLength, fallLength, winterLength };
+                Season[] seasonArray = new Season[] { Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER };
 
                 int startSeasonIndex = switch (CONFIG.getStartingSeason()) {
                     case SPRING -> 0;
@@ -243,9 +250,9 @@ public class FabricSeasons implements ModInitializer {
                 long yearLength = season3LimitYTD + seasonLengthArray[(startSeasonIndex + 3) % 4];
                 long timeOfYear = world.getTimeOfDay() % yearLength;
 
-                if(timeOfYear < season1LimitYTD) {
+                if (timeOfYear < season1LimitYTD) {
                     return seasonArray[startSeasonIndex];
-                } else if(timeOfYear < season2LimitYTD) {
+                } else if (timeOfYear < season2LimitYTD) {
                     return seasonArray[(startSeasonIndex + 1) % 4];
                 } else if (timeOfYear < season3LimitYTD) {
                     return seasonArray[(startSeasonIndex + 2) % 4];
@@ -261,7 +268,7 @@ public class FabricSeasons implements ModInitializer {
     public static Season getCurrentSeason() {
         MinecraftClient client = MinecraftClient.getInstance();
         ClientPlayerEntity player = client.player;
-        if(player != null && player.getWorld() != null) {
+        if (player != null && player.getWorld() != null) {
             return getCurrentSeason(player.getWorld());
         }
         return Season.SPRING;
@@ -272,14 +279,14 @@ public class FabricSeasons implements ModInitializer {
         LocalDateTime nextSeasonStart;
 
         Season currentSeason = getCurrentSystemSeason();
-        if(CONFIG.isInNorthHemisphere()) {
+        if (CONFIG.isInNorthHemisphere()) {
             nextSeasonStart = switch (currentSeason) {
                 case WINTER -> LocalDateTime.of(now.getYear(), 3, 20, 0, 0);
                 case SPRING -> LocalDateTime.of(now.getYear(), 6, 21, 0, 0);
                 case SUMMER -> LocalDateTime.of(now.getYear(), 9, 22, 0, 0);
                 case FALL -> LocalDateTime.of(now.getYear(), 12, 21, 0, 0);
             };
-        }else{
+        } else {
             nextSeasonStart = switch (currentSeason) {
                 case SUMMER -> LocalDateTime.of(now.getYear(), 3, 20, 0, 0);
                 case FALL -> LocalDateTime.of(now.getYear(), 6, 21, 0, 0);
@@ -339,75 +346,97 @@ public class FabricSeasons implements ModInitializer {
         return season;
     }
 
-    private static final TagKey<Biome> IGNORED_CATEGORIES_TAG = TagKey.of(RegistryKeys.BIOME, FabricSeasons.identifier("ignored"));
+    private static final TagKey<Biome> IGNORED_CATEGORIES_TAG = TagKey.of(RegistryKeys.BIOME,
+            FabricSeasons.identifier("ignored"));
+
+    // ferretcat
+    public static final TagKey<Biome> LESSER_COLOR_CHANGE_BIOMES_TAG = TagKey.of(RegistryKeys.BIOME,
+            FabricSeasons.identifier("lesser_color_change_biomes"));
+    public static final TagKey<Biome> TROPICAL_BIOMES_TAG = TagKey.of(RegistryKeys.BIOME,
+            FabricSeasons.identifier("tropical_biomes"));
 
     public static void injectBiomeTemperature(RegistryEntry<Biome> entry, World world) {
-        if(entry.isIn(IGNORED_CATEGORIES_TAG))
+        if (entry.isIn(IGNORED_CATEGORIES_TAG))
             return;
 
         // legacy, prefer use of tag where possible
         Biome biome = entry.value();
         Identifier biomeId = entry.getKey().orElse(BiomeKeys.PLAINS).getValue();
-        if(!CONFIG.doTemperatureChanges(biomeId)) return;
+        if (!CONFIG.doTemperatureChanges(biomeId))
+            return;
 
         Biome.Weather currentWeather = biome.weather;
         Biome.Weather originalWeather = ((BiomeMixed) (Object) biome).getOriginalWeather();
         if (originalWeather == null) {
-            originalWeather = new Biome.Weather(currentWeather.hasPrecipitation(), currentWeather.temperature(), currentWeather.temperatureModifier(), currentWeather.downfall());
+            originalWeather = new Biome.Weather(currentWeather.hasPrecipitation(), currentWeather.temperature(),
+                    currentWeather.temperatureModifier(), currentWeather.downfall());
             ((BiomeMixed) (Object) biome).setOriginalWeather(originalWeather);
         }
         Season season = FabricSeasons.getCurrentSeason(world);
 
-        Pair<Boolean, Float> modifiedWeather = getSeasonWeather(season, biomeId, originalWeather.hasPrecipitation, originalWeather.temperature);
+        Pair<Boolean, Float> modifiedWeather = getSeasonWeather(season, biomeId, originalWeather.hasPrecipitation,
+                originalWeather.temperature);
         currentWeather.hasPrecipitation = modifiedWeather.getLeft();
         currentWeather.temperature = modifiedWeather.getRight();
     }
 
-    public static Pair<Boolean, Float> getSeasonWeather(Season season, Identifier biomeId, Boolean hasPrecipitation, float temp) {
-        if(!CONFIG.doTemperatureChanges(biomeId)) {
+    public static Pair<Boolean, Float> getSeasonWeather(Season season, Identifier biomeId, Boolean hasPrecipitation,
+            float temp) {
+        if (!CONFIG.doTemperatureChanges(biomeId)) {
             return new Pair<>(hasPrecipitation, temp);
         }
-        if(CONFIG.isSnowForcedInBiome(biomeId) && season == Season.WINTER) {
+        if (CONFIG.isSnowForcedInBiome(biomeId) && season == Season.WINTER) {
             return new Pair<>(hasPrecipitation, 0.14f);
-        }else if(temp <= -0.51) {
+        } else if (temp <= -0.51) {
             //Permanently Frozen Biomes
             return switch (season) {
-                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.3f) : new Pair<>(hasPrecipitation, temp);
+                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.3f)
+                        : new Pair<>(hasPrecipitation, temp);
                 case SUMMER -> new Pair<>(hasPrecipitation, temp + 0.84f);
                 case WINTER -> new Pair<>(hasPrecipitation, temp - 0.7f);
-                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp) : new Pair<>(hasPrecipitation, temp - 0.3f);
+                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp)
+                        : new Pair<>(hasPrecipitation, temp - 0.3f);
             };
-        }else if(temp <= 0.15) {
+        } else if (temp <= 0.15) {
             //Usually Frozen Biomes
             return switch (season) {
-                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.25f) : new Pair<>(hasPrecipitation, temp);
-                case SUMMER -> new Pair<>(hasPrecipitation, temp + (CONFIG.shouldSnowyBiomesMeltInSummer() ? 0.66f : 0f));
+                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.25f)
+                        : new Pair<>(hasPrecipitation, temp);
+                case SUMMER ->
+                    new Pair<>(hasPrecipitation, temp + (CONFIG.shouldSnowyBiomesMeltInSummer() ? 0.66f : 0f));
                 case WINTER -> new Pair<>(hasPrecipitation, temp - 0.75f);
-                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp) : new Pair<>(hasPrecipitation, temp - 0.25f);
+                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp)
+                        : new Pair<>(hasPrecipitation, temp - 0.25f);
             };
-        }else if(temp <= 0.49) {
+        } else if (temp <= 0.49) {
             //Temparate Biomes
             return switch (season) {
-                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.16f) : new Pair<>(hasPrecipitation, temp);
+                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.16f)
+                        : new Pair<>(hasPrecipitation, temp);
                 case SUMMER -> new Pair<>(hasPrecipitation, temp + 0.66f);
                 case WINTER -> new Pair<>(hasPrecipitation, temp - 0.8f);
-                case FALL  -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp) : new Pair<>(hasPrecipitation, temp - 0.16f);
+                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp)
+                        : new Pair<>(hasPrecipitation, temp - 0.16f);
             };
-        }else if(temp <= 0.79) {
+        } else if (temp <= 0.79) {
             //Usually Ice Free Biomes
             return switch (season) {
-                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.34f) : new Pair<>(hasPrecipitation, temp);
+                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.34f)
+                        : new Pair<>(hasPrecipitation, temp);
                 case SUMMER -> new Pair<>(hasPrecipitation, temp + 0.46f);
                 case WINTER -> new Pair<>(hasPrecipitation, temp - 0.56f);
-                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp) : new Pair<>(hasPrecipitation, temp - 0.34f);
+                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp)
+                        : new Pair<>(hasPrecipitation, temp - 0.34f);
             };
-        }else{
+        } else {
             // Ice Free Biomes
             return switch (season) {
-                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.34f) : new Pair<>(hasPrecipitation, temp);
+                case SPRING -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp - 0.34f)
+                        : new Pair<>(hasPrecipitation, temp);
                 case SUMMER -> new Pair<>(hasPrecipitation, temp + 0.4f);
                 case WINTER -> new Pair<>(true, temp - 0.64f);
-                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp) : new Pair<>(hasPrecipitation, temp - 0.34f);
+                case FALL -> CONFIG.isFallAndSpringReversed() ? new Pair<>(hasPrecipitation, temp)
+                        : new Pair<>(hasPrecipitation, temp - 0.34f);
             };
         }
     }
